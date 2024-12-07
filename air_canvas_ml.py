@@ -72,12 +72,13 @@ if camera_input:
             # Draw landmarks on frame
             mpDraw.draw_landmarks(frame, handslms, mpHands.HAND_CONNECTIONS)
 
-        fore_finger = (landmarks[8][0], landmarks[8][1])
+        # Track the index finger and thumb for gestures
+        fore_finger = (landmarks[8][0], landmarks[8][1])  # Index finger tip
         center = fore_finger
-        thumb = (landmarks[4][0], landmarks[4][1])
+        thumb = (landmarks[4][0], landmarks[4][1])  # Thumb tip
         cv2.circle(frame, center, 3, (0, 255, 0), -1)
 
-        if (thumb[1] - center[1] < 30):
+        if (thumb[1] - center[1] < 30):  # If the hand is close together, reset drawing
             bpoints.append(deque(maxlen=512))
             blue_index += 1
             gpoints.append(deque(maxlen=512))
@@ -86,7 +87,7 @@ if camera_input:
             red_index += 1
             ypoints.append(deque(maxlen=512))
             yellow_index += 1
-        elif center[1] <= 65:
+        elif center[1] <= 65:  # Select color from the color bar
             if 40 <= center[0] <= 140:  # Clear Button
                 bpoints = [deque(maxlen=512)]
                 gpoints = [deque(maxlen=512)]
