@@ -4,25 +4,23 @@ import mediapipe as mp
 import streamlit as st
 from collections import deque
 
-# Giving different arrays to handle colour points of different colours
+# Initialize variables for drawing
 bpoints = [deque(maxlen=1024)]
 gpoints = [deque(maxlen=1024)]
 rpoints = [deque(maxlen=1024)]
 ypoints = [deque(maxlen=1024)]
 
-# These indexes will be used to mark the points in particular arrays of specific colours
 blue_index = 0
 green_index = 0
 red_index = 0
 yellow_index = 0
 
-# The kernel to be used for dilation purpose
 kernel = np.ones((5, 5), np.uint8)
 
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
 colorIndex = 0
 
-# Canvas setup
+# Setup for paint window
 paintWindow = np.zeros((471, 636, 3)) + 255
 paintWindow = cv2.rectangle(paintWindow, (40, 1), (140, 65), (0, 0, 0), 2)
 paintWindow = cv2.rectangle(paintWindow, (160, 1), (255, 65), (255, 0, 0), 2)
@@ -36,7 +34,7 @@ cv2.putText(paintWindow, "GREEN", (298, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 
 cv2.putText(paintWindow, "RED", (420, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 cv2.putText(paintWindow, "YELLOW", (520, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 
-# initialize mediapipe
+# Initialize mediapipe for hand tracking
 mpHands = mp.solutions.hands
 hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
@@ -46,26 +44,22 @@ st.title("AIR Canvas with ML")
 run = st.checkbox("Start Drawing")
 frame_placeholder = st.empty()
 
-# Initialize the webcam for local usage (this doesn't work in Streamlit Cloud)
-cap = cv2.VideoCapture(0)
+# Use st.camera_input to access webcam in Streamlit Cloud
+camera_input = st.camera_input("Capture image")
 
-while run:
-    ret, frame = cap.read()
+if camera_input:
+    # Convert captured image from the camera widget to a frame
+    frame = camera_input
 
-    if not ret:
-        st.error("Failed to get frame from webcam.")
-        break
-
-    # Flip the frame vertically
+    # Flip the frame
     frame = cv2.flip(frame, 1)
 
-    # Convert the frame to RGB (Streamlit uses RGB, not BGR)
+    # Convert frame to RGB for mediapipe
     framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Get hand landmark prediction
+    # Hand landmark prediction
     result = hands.process(framergb)
 
-    # Post-process the result
     if result.multi_hand_landmarks:
         landmarks = []
         for handslms in result.multi_hand_landmarks:
@@ -75,14 +69,14 @@ while run:
 
                 landmarks.append([lmx, lmy])
 
-            # Drawing landmarks on frames
+            # Draw landmarks on frame
             mpDraw.draw_landmarks(frame, handslms, mpHands.HAND_CONNECTIONS)
+
         fore_finger = (landmarks[8][0], landmarks[8][1])
         center = fore_finger
         thumb = (landmarks[4][0], landmarks[4][1])
         cv2.circle(frame, center, 3, (0, 255, 0), -1)
 
-        # Handle button clicks and drawing
         if (thumb[1] - center[1] < 30):
             bpoints.append(deque(maxlen=512))
             blue_index += 1
@@ -122,7 +116,7 @@ while run:
             elif colorIndex == 3:
                 ypoints[yellow_index].appendleft(center)
 
-    # Draw lines of all the colours on the canvas and frame
+    # Draw the points on the frame
     points = [bpoints, gpoints, rpoints, ypoints]
     for i in range(len(points)):
         for j in range(len(points[i])):
@@ -132,14 +126,10 @@ while run:
                 cv2.line(frame, points[i][j][k - 1], points[i][j][k], colors[i], 2)
                 cv2.line(paintWindow, points[i][j][k - 1], points[i][j][k], colors[i], 2)
 
-    # Show the updated frame in Streamlit
+    # Convert to RGB for Streamlit display
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     paintWindow_rgb = cv2.cvtColor(paintWindow, cv2.COLOR_BGR2RGB)
+
+    # Show the updated frames in Streamlit
     frame_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
     frame_placeholder.image(paintWindow_rgb, channels="RGB", use_column_width=True)
-
-    if not run:
-        break
-
-# Release the webcam when the app is stopped
-cap.release()
