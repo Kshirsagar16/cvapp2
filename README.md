@@ -20,3 +20,4 @@ Here Hand landmarks detection and tracking is used in order to achieve the objec
 Requirements: python3 , numpy , opencv, mediapipe installed on your system.
 
 <img src="https://raw.githubusercontent.com/infoaryan/Air-Canvas-with-ML/master/Screenshot%20from%202022-06-16%2019-57-44.png" width="950" height="400">
+# cvapp2
