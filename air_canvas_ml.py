@@ -48,7 +48,9 @@ paint_window_placeholder = st.empty()
 while ret:
     # Read each frame from the webcam
     ret, frame = cap.read()
-    x, y, c = frame.shape
+    if not ret or frame is None:
+            st.error("Error: Could not read frame from webcam.")
+            break
 
     # Flip the frame vertically
     frame = cv2.flip(frame, 1)
