@@ -9,7 +9,7 @@ st.title("AI Canvas with Hand Tracking")
 st.write("Click the button below to start the camera")
 
 # Add button to start the camera
-start_button = st.button("Start Camera")
+start_button = st.camera_input("Capture Your Drawing")
 
 if start_button:
     # Initialize the paint window and canvas
