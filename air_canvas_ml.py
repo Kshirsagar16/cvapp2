@@ -4,31 +4,31 @@ import mediapipe as mp
 import streamlit as st
 from collections import deque
 
-# Arrays to handle color points
+# Giving different arrays to handle colour points of different colours
 bpoints = [deque(maxlen=1024)]
 gpoints = [deque(maxlen=1024)]
 rpoints = [deque(maxlen=1024)]
 ypoints = [deque(maxlen=1024)]
 
-# Indexes for color points
+# These indexes will be used to mark the points in particular arrays of specific colours
 blue_index = 0
 green_index = 0
 red_index = 0
 yellow_index = 0
 
-# Kernel for dilation purpose
-kernel = np.ones((5,5), np.uint8)
+# The kernel to be used for dilation purpose
+kernel = np.ones((5, 5), np.uint8)
 
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
 colorIndex = 0
 
 # Canvas setup
-paintWindow = np.zeros((471,636,3)) + 255
-paintWindow = cv2.rectangle(paintWindow, (40,1), (140,65), (0,0,0), 2)
-paintWindow = cv2.rectangle(paintWindow, (160,1), (255,65), (255,0,0), 2)
-paintWindow = cv2.rectangle(paintWindow, (275,1), (370,65), (0,255,0), 2)
-paintWindow = cv2.rectangle(paintWindow, (390,1), (485,65), (0,0,255), 2)
-paintWindow = cv2.rectangle(paintWindow, (505,1), (600,65), (0,255,255), 2)
+paintWindow = np.zeros((471, 636, 3)) + 255
+paintWindow = cv2.rectangle(paintWindow, (40, 1), (140, 65), (0, 0, 0), 2)
+paintWindow = cv2.rectangle(paintWindow, (160, 1), (255, 65), (255, 0, 0), 2)
+paintWindow = cv2.rectangle(paintWindow, (275, 1), (370, 65), (0, 255, 0), 2)
+paintWindow = cv2.rectangle(paintWindow, (390, 1), (485, 65), (0, 0, 255), 2)
+paintWindow = cv2.rectangle(paintWindow, (505, 1), (600, 65), (0, 255, 255), 2)
 
 cv2.putText(paintWindow, "CLEAR", (49, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 cv2.putText(paintWindow, "BLUE", (185, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
@@ -36,59 +36,53 @@ cv2.putText(paintWindow, "GREEN", (298, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 
 cv2.putText(paintWindow, "RED", (420, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 cv2.putText(paintWindow, "YELLOW", (520, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 
-# Initialize MediaPipe Hands
+# initialize mediapipe
 mpHands = mp.solutions.hands
 hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
 
-# OpenCV webcam initialization
-cap = cv2.VideoCapture(0)
-
-# Streamlit UI for webcam feed
-st.title("Air Canvas with Hand Gesture")
-st.sidebar.header("Control Panel")
-st.sidebar.text("Use the buttons below to control your drawing.")
-st.sidebar.text("Press 'q' to stop the program in the webcam.")
-
-# Streamlit image display
+# Streamlit UI for webcam display
+st.title("AIR Canvas with ML")
+run = st.checkbox("Start Drawing")
 frame_placeholder = st.empty()
 
-while True:
+# Initialize the webcam for local usage (this doesn't work in Streamlit Cloud)
+cap = cv2.VideoCapture(0)
+
+while run:
     ret, frame = cap.read()
 
     if not ret:
-        st.error("Unable to access webcam")
+        st.error("Failed to get frame from webcam.")
         break
 
-    # Flip the frame horizontally for better user interaction
+    # Flip the frame vertically
     frame = cv2.flip(frame, 1)
 
-    # Convert frame to RGB for MediaPipe
+    # Convert the frame to RGB (Streamlit uses RGB, not BGR)
     framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Get hand landmark prediction
     result = hands.process(framergb)
 
-    # Post-process result
+    # Post-process the result
     if result.multi_hand_landmarks:
         landmarks = []
         for handslms in result.multi_hand_landmarks:
             for lm in handslms.landmark:
                 lmx = int(lm.x * 640)
                 lmy = int(lm.y * 480)
+
                 landmarks.append([lmx, lmy])
 
             # Drawing landmarks on frames
             mpDraw.draw_landmarks(frame, handslms, mpHands.HAND_CONNECTIONS)
-        
-        # Get center of the hand and other landmarks
         fore_finger = (landmarks[8][0], landmarks[8][1])
         center = fore_finger
         thumb = (landmarks[4][0], landmarks[4][1])
-
-        # Drawing the circle for interaction
         cv2.circle(frame, center, 3, (0, 255, 0), -1)
 
+        # Handle button clicks and drawing
         if (thumb[1] - center[1] < 30):
             bpoints.append(deque(maxlen=512))
             blue_index += 1
@@ -104,22 +98,21 @@ while True:
                 gpoints = [deque(maxlen=512)]
                 rpoints = [deque(maxlen=512)]
                 ypoints = [deque(maxlen=512)]
+
                 blue_index = 0
                 green_index = 0
                 red_index = 0
                 yellow_index = 0
                 paintWindow[67:, :, :] = 255
-            elif 160 <= center[0] <= 255:  # Blue
-                colorIndex = 0
-            elif 275 <= center[0] <= 370:  # Green
-                colorIndex = 1
-            elif 390 <= center[0] <= 485:  # Red
-                colorIndex = 2
-            elif 505 <= center[0] <= 600:  # Yellow
-                colorIndex = 3
+            elif 160 <= center[0] <= 255:
+                colorIndex = 0  # Blue
+            elif 275 <= center[0] <= 370:
+                colorIndex = 1  # Green
+            elif 390 <= center[0] <= 485:
+                colorIndex = 2  # Red
+            elif 505 <= center[0] <= 600:
+                colorIndex = 3  # Yellow
         else:
-            # Draw the lines based on the color selected
-            points = [bpoints, gpoints, rpoints, ypoints]
             if colorIndex == 0:
                 bpoints[blue_index].appendleft(center)
             elif colorIndex == 1:
@@ -129,7 +122,7 @@ while True:
             elif colorIndex == 3:
                 ypoints[yellow_index].appendleft(center)
 
-    # Draw lines for each color on the canvas
+    # Draw lines of all the colours on the canvas and frame
     points = [bpoints, gpoints, rpoints, ypoints]
     for i in range(len(points)):
         for j in range(len(points[i])):
@@ -139,18 +132,14 @@ while True:
                 cv2.line(frame, points[i][j][k - 1], points[i][j][k], colors[i], 2)
                 cv2.line(paintWindow, points[i][j][k - 1], points[i][j][k], colors[i], 2)
 
-    # Show the frame and paint window in Streamlit
+    # Show the updated frame in Streamlit
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    paint_rgb = cv2.cvtColor(paintWindow, cv2.COLOR_BGR2RGB)
-
-    # Display images in Streamlit
+    paintWindow_rgb = cv2.cvtColor(paintWindow, cv2.COLOR_BGR2RGB)
     frame_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
-    st.image(paint_rgb, channels="RGB", caption="Paint Canvas")
+    frame_placeholder.image(paintWindow_rgb, channels="RGB", use_column_width=True)
 
-    # Wait for user input to stop (in Streamlit, no need for `cv2.waitKey()`)
-    if st.button('Stop Drawing'):
+    if not run:
         break
 
-# Release the webcam and stop Streamlit session
+# Release the webcam when the app is stopped
 cap.release()
-cv2.destroyAllWindows()
