@@ -32,7 +32,7 @@ if start_button:
     mpDraw = mp.solutions.drawing_utils
 
     # Initialize the webcam
-    cap = cv2.VideoCapture(0)
+    cap = st.camera_input()
     ret = True
 
     # Initialize deque for points
