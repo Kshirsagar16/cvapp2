@@ -2,4 +2,3 @@ opencv-python-headless
 numpy
 mediapipe
 streamlit
-camera_input_live
