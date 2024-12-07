@@ -1,30 +1,28 @@
-# All the imports go here
 import cv2
 import numpy as np
 import mediapipe as mp
+import streamlit as st
 from collections import deque
 
-
-# Giving different arrays to handle colour points of different colour
+# Arrays to handle color points
 bpoints = [deque(maxlen=1024)]
 gpoints = [deque(maxlen=1024)]
 rpoints = [deque(maxlen=1024)]
 ypoints = [deque(maxlen=1024)]
 
-
-# These indexes will be used to mark the points in particular arrays of specific colour
+# Indexes for color points
 blue_index = 0
 green_index = 0
 red_index = 0
 yellow_index = 0
 
-#The kernel to be used for dilation purpose 
-kernel = np.ones((5,5),np.uint8)
+# Kernel for dilation purpose
+kernel = np.ones((5,5), np.uint8)
 
 colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (0, 255, 255)]
 colorIndex = 0
 
-# Here is code for Canvas setup
+# Canvas setup
 paintWindow = np.zeros((471,636,3)) + 255
 paintWindow = cv2.rectangle(paintWindow, (40,1), (140,65), (0,0,0), 2)
 paintWindow = cv2.rectangle(paintWindow, (160,1), (255,65), (255,0,0), 2)
@@ -37,66 +35,61 @@ cv2.putText(paintWindow, "BLUE", (185, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0
 cv2.putText(paintWindow, "GREEN", (298, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 cv2.putText(paintWindow, "RED", (420, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
 cv2.putText(paintWindow, "YELLOW", (520, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-cv2.namedWindow('Paint', cv2.WINDOW_AUTOSIZE)
 
-
-# initialize mediapipe
+# Initialize MediaPipe Hands
 mpHands = mp.solutions.hands
 hands = mpHands.Hands(max_num_hands=1, min_detection_confidence=0.7)
 mpDraw = mp.solutions.drawing_utils
 
-
-# Initialize the webcam
+# OpenCV webcam initialization
 cap = cv2.VideoCapture(0)
-ret = True
-while ret:
-    # Read each frame from the webcam
+
+# Streamlit UI for webcam feed
+st.title("Air Canvas with Hand Gesture")
+st.sidebar.header("Control Panel")
+st.sidebar.text("Use the buttons below to control your drawing.")
+st.sidebar.text("Press 'q' to stop the program in the webcam.")
+
+# Streamlit image display
+frame_placeholder = st.empty()
+
+while True:
     ret, frame = cap.read()
 
-    x, y, c = frame.shape
+    if not ret:
+        st.error("Unable to access webcam")
+        break
 
-    # Flip the frame vertically
+    # Flip the frame horizontally for better user interaction
     frame = cv2.flip(frame, 1)
-    #hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    frame = cv2.rectangle(frame, (40,1), (140,65), (0,0,0), 2)
-    frame = cv2.rectangle(frame, (160,1), (255,65), (255,0,0), 2)
-    frame = cv2.rectangle(frame, (275,1), (370,65), (0,255,0), 2)
-    frame = cv2.rectangle(frame, (390,1), (485,65), (0,0,255), 2)
-    frame = cv2.rectangle(frame, (505,1), (600,65), (0,255,255), 2)
-    cv2.putText(frame, "CLEAR", (49, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(frame, "BLUE", (185, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(frame, "GREEN", (298, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(frame, "RED", (420, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(frame, "YELLOW", (520, 33), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
-    #frame = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    # Convert frame to RGB for MediaPipe
+    framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Get hand landmark prediction
     result = hands.process(framergb)
 
-    # post process the result
+    # Post-process result
     if result.multi_hand_landmarks:
         landmarks = []
         for handslms in result.multi_hand_landmarks:
             for lm in handslms.landmark:
-                # # print(id, lm)
-                # print(lm.x)
-                # print(lm.y)
                 lmx = int(lm.x * 640)
                 lmy = int(lm.y * 480)
-
                 landmarks.append([lmx, lmy])
-
 
             # Drawing landmarks on frames
             mpDraw.draw_landmarks(frame, handslms, mpHands.HAND_CONNECTIONS)
-        fore_finger = (landmarks[8][0],landmarks[8][1])
+        
+        # Get center of the hand and other landmarks
+        fore_finger = (landmarks[8][0], landmarks[8][1])
         center = fore_finger
-        thumb = (landmarks[4][0],landmarks[4][1])
-        cv2.circle(frame, center, 3, (0,255,0),-1)
-        print(center[1]-thumb[1])
-        if (thumb[1]-center[1]<30):
+        thumb = (landmarks[4][0], landmarks[4][1])
+
+        # Drawing the circle for interaction
+        cv2.circle(frame, center, 3, (0, 255, 0), -1)
+
+        if (thumb[1] - center[1] < 30):
             bpoints.append(deque(maxlen=512))
             blue_index += 1
             gpoints.append(deque(maxlen=512))
@@ -105,29 +98,28 @@ while ret:
             red_index += 1
             ypoints.append(deque(maxlen=512))
             yellow_index += 1
-
         elif center[1] <= 65:
-            if 40 <= center[0] <= 140: # Clear Button
+            if 40 <= center[0] <= 140:  # Clear Button
                 bpoints = [deque(maxlen=512)]
                 gpoints = [deque(maxlen=512)]
                 rpoints = [deque(maxlen=512)]
                 ypoints = [deque(maxlen=512)]
-
                 blue_index = 0
                 green_index = 0
                 red_index = 0
                 yellow_index = 0
-
-                paintWindow[67:,:,:] = 255
-            elif 160 <= center[0] <= 255:
-                    colorIndex = 0 # Blue
-            elif 275 <= center[0] <= 370:
-                    colorIndex = 1 # Green
-            elif 390 <= center[0] <= 485:
-                    colorIndex = 2 # Red
-            elif 505 <= center[0] <= 600:
-                    colorIndex = 3 # Yellow
-        else :
+                paintWindow[67:, :, :] = 255
+            elif 160 <= center[0] <= 255:  # Blue
+                colorIndex = 0
+            elif 275 <= center[0] <= 370:  # Green
+                colorIndex = 1
+            elif 390 <= center[0] <= 485:  # Red
+                colorIndex = 2
+            elif 505 <= center[0] <= 600:  # Yellow
+                colorIndex = 3
+        else:
+            # Draw the lines based on the color selected
+            points = [bpoints, gpoints, rpoints, ypoints]
             if colorIndex == 0:
                 bpoints[blue_index].appendleft(center)
             elif colorIndex == 1:
@@ -136,24 +128,9 @@ while ret:
                 rpoints[red_index].appendleft(center)
             elif colorIndex == 3:
                 ypoints[yellow_index].appendleft(center)
-    # Append the next deques when nothing is detected to avois messing up
-    else:
-        bpoints.append(deque(maxlen=512))
-        blue_index += 1
-        gpoints.append(deque(maxlen=512))
-        green_index += 1
-        rpoints.append(deque(maxlen=512))
-        red_index += 1
-        ypoints.append(deque(maxlen=512))
-        yellow_index += 1
 
-    # Draw lines of all the colors on the canvas and frame
+    # Draw lines for each color on the canvas
     points = [bpoints, gpoints, rpoints, ypoints]
-    # for j in range(len(points[0])):
-    #         for k in range(1, len(points[0][j])):
-    #             if points[0][j][k - 1] is None or points[0][j][k] is None:
-    #                 continue
-    #             cv2.line(paintWindow, points[0][j][k - 1], points[0][j][k], colors[0], 2)
     for i in range(len(points)):
         for j in range(len(points[i])):
             for k in range(1, len(points[i][j])):
@@ -162,12 +139,18 @@ while ret:
                 cv2.line(frame, points[i][j][k - 1], points[i][j][k], colors[i], 2)
                 cv2.line(paintWindow, points[i][j][k - 1], points[i][j][k], colors[i], 2)
 
-    cv2.imshow("Output", frame) 
-    cv2.imshow("Paint", paintWindow)
+    # Show the frame and paint window in Streamlit
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    paint_rgb = cv2.cvtColor(paintWindow, cv2.COLOR_BGR2RGB)
 
-    if cv2.waitKey(1) == ord('q'):
+    # Display images in Streamlit
+    frame_placeholder.image(frame_rgb, channels="RGB", use_column_width=True)
+    st.image(paint_rgb, channels="RGB", caption="Paint Canvas")
+
+    # Wait for user input to stop (in Streamlit, no need for `cv2.waitKey()`)
+    if st.button('Stop Drawing'):
         break
 
-# release the webcam and destroy all active windows
+# Release the webcam and stop Streamlit session
 cap.release()
 cv2.destroyAllWindows()
